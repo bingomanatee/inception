@@ -25,18 +25,21 @@ export default (bottle) => {
         }
 
         get data() {
-          if (!this._data) this._data = new Map();
+          if (!this._data) {
+            this._data = new Map();
+          }
           return this._data;
         }
 
         set data(value) {
-          if (!(value && value instanceof Map)){
-            if (Array.isArray(value)){
+          if (!(value && value instanceof Map)) {
+            if (Array.isArray(value)) {
               value = value.reduce((map, item) => {
-                  if (item instanceof Data){
+                  if (item instanceof Data) {
                     item.fetcher = this;
                     map.set(item.key, item);
-                  } else if (item && (typeof item === 'object')){
+                  }
+                  else if (item && (typeof item === 'object')) {
                     const dataItem = new Data(item, this, DATA_STATUS_LOADED);
                     map.set(dataItem.key, dataItem)
                   }
@@ -46,6 +49,10 @@ export default (bottle) => {
             }
           }
           this._data = value;
+        }
+
+        set(key, data){
+          this.data.set(key, data);
         }
 
         get(key) {
@@ -66,14 +73,14 @@ export default (bottle) => {
           return this.schema.validate(fields, this.schema)
             .then(() => {
               let data = new Data({fields, fetcher: this, status: DATA_STATUS_LOADED});
-              this._data.set(data.key, data);
+              this.set(data.key, data);
               return data;
             })
             .catch(err => {
-              let error = new Error('failed to insert data');
+              let error = new Error('failed to insert record');
               error.fields = fields;
               error.err = err;
-              throw error;
+              return Promise.reject(error);
             });
         }
       };

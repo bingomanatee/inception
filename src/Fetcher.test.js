@@ -74,6 +74,20 @@ tap.test('Fetcher', (suite) => {
         })
     });
 
+    context.test('new record bad schema', contextPutBad => {
+      before();
+       f.put({id: 4, nameWrong: 'Scrooge', notes: 'Also Named Donald'})
+         .then(() => {
+           contextPutBad.fail('failed to reject at bad insert');
+           contextPutBad.end();
+         })
+        .catch((err) => {
+          // this is the expected result;
+          contextPutBad.pass();
+          contextPutBad.end();
+        })
+    });
+
     context.test('old record', async contextPutOld => {
       before();
       await f.put({id: 2, name: 'Donald', notes: 'Broke ass punk'});
