@@ -1,7 +1,7 @@
 {
-  "name": "carpenter",
+  "name": "@wonderlandlabs/inception",
   "version": "1.0.0",
-  "description": "Describe carpenter here",
+  "description": "A stream based system for model/server communication",
   "main": "lib/index.js",
   "module": "es/index.js",
   "files": [
@@ -13,11 +13,17 @@
     "build": "nwb build-web-module",
     "clean": "nwb clean-module",
     "prepublishOnly": "npm run build",
-    "test": "nwb test",
-    "test:coverage": "nwb test --coverage",
-    "test:watch": "nwb test --server"
+    "test": "yarn build;tap test src/*.test.js"
   },
   "dependencies": {
+    "@wonderlandlabs/looking-glass-engine": "^1.0.12",
+    "axios": "^0.18.0",
+    "bottlejs": "^1.7.2",
+    "lodash.get": "^4.4.2",
+    "promise-polyfill": "^8.1.0",
+    "rxjs": "^6.4.0",
+    "tap": "^12.6.0",
+    "yup": "^0.26.10"
   },
   "devDependencies": {
     "nwb": "0.23.x"
