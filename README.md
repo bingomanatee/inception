@@ -4,11 +4,32 @@
 [![npm package][npm-badge]][npm]
 [![Coveralls][coveralls-badge]][coveralls]
 
-Carpenter is a stream based ActiveRecord system. On its face its a conventional streaming system. 
+Ripple is a different interperetation of the ActiveRecord pattern. 
+The concpet here is that you may have Collections - things which have data - that send signals to 
+other collections (which may be a facade for a REST endpoint) that "I want a {action: thing}".
 
-Under the hood, every change it manages streams through to the model system, so that if one record changes,
-any data retrieved by it (optionally) gets streamed updates so that other loaded data or data in progress
-can update to the latest version of the dataset -- or re-poll itself to get more current information. 
+Then, you get a Signal instance which is a "Subscription" to the remote system that says
+"When the remote collection emits a signal that satisfies me, I will send it out of my stream."
+
+It may do this once or many times. For instance if one signal watches a record, then another 
+signal deletes it, then the first signal might get feedback from either signals in either order.
+
+You might get a signal of data from your request, THEN information that the record was deleted, in that order.
+
+OR
+
+you might get information that the record was deleted, THEN a 404. (or maybe not depending on how the systems are coded)
+
+Similarly if you get a single record, then send a series of updates to that record you might get update signals
+from the first signal every time. OR if you get a series of records and a third party has updated that record,
+you might get informed laterally of that update.
+
+Get's are signals. Put's are signals. Delete's are signals. The point being, every signal implies an interest in
+one or more records AND/OR the execution of an operation. 
+
+As signals are RxJS Observers, you can unsubscribe at any time, releasing the observation of the action. 
+If for instance you delete a record, once you have validation that it's been deleted, you probably want to unsub and
+stop caring about that record. 
 
 [build-badge]: https://img.shields.io/travis/user/repo/master.png?style=flat-square
 [build]: https://travis-ci.org/user/repo

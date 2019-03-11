@@ -22,8 +22,8 @@ export default (bottle) => {
         }
       }
 
-      get key() {
-        return this.fields[this.fetcher.key];
+      get id() {
+        return this.fields[this.fetcher.id];
       }
     };
   });

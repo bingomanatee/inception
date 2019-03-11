@@ -14,12 +14,12 @@ export default (bottle) => {
         constructor({
                       name,
                       data = UNSET,
-                      key = 'id',
+                      id = 'id',
                       schema,
                     }) {
 
           this.name = name;
-          this.key = key;
+          this.id = id;
           this.schema = schema;
           this.data = data;
         }
@@ -37,11 +37,11 @@ export default (bottle) => {
               value = value.reduce((map, item) => {
                   if (item instanceof Data) {
                     item.fetcher = this;
-                    map.set(item.key, item);
+                    map.set(item.id, item);
                   }
                   else if (item && (typeof item === 'object')) {
                     const dataItem = new Data(item, this, DATA_STATUS_LOADED);
-                    map.set(dataItem.key, dataItem)
+                    map.set(dataItem.id, dataItem)
                   }
                   return map;
                 },
@@ -51,16 +51,16 @@ export default (bottle) => {
           this._data = value;
         }
 
-        set(key, data){
-          this.data.set(key, data);
+        set(id, data){
+          this.data.set(id, data);
         }
 
-        get(key) {
-          if (this._data.has(key)) {
-            return Promise.resolve(this._data.get(key));
+        get(id) {
+          if (this._data.has(id)) {
+            return Promise.resolve(this._data.get(id));
           }
           else {
-            return Promise.reject({error: 'cannot find key', key})
+            return Promise.reject({error: 'cannot find id', id})
           }
         }
 
@@ -73,7 +73,7 @@ export default (bottle) => {
           return this.schema.validate(fields, this.schema)
             .then(() => {
               let data = new Data({fields, fetcher: this, status: DATA_STATUS_LOADED});
-              this.set(data.key, data);
+              this.set(data.id, data);
               return data;
             })
             .catch(err => {
