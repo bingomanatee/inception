@@ -1,23 +1,19 @@
 import Bottle from 'bottlejs';
 
-import collFactory from './Collection';
-import fetcherFactory from './Fetcher';
-import dataFactory from './Data';
-import collectionDataFactory from './CollectionData';
-import unsetFactory from './unset';
+import collFactory from './Channel';
+import fetcherFactory from './Pool';
+import impulseFactory from './Impulse';
 import catchFactory from './rxCatch';
-import signalFactory from './Signal';
 import promiserFactory from './Promiser';
+import unsetFactory from './utils';
 
 export default () => {
   let bottle = new Bottle();
   unsetFactory(bottle);
   collFactory(bottle);
   fetcherFactory(bottle);
-  dataFactory(bottle);
-  collectionDataFactory(bottle);
   catchFactory(bottle);
-  signalFactory(bottle);
+  impulseFactory(bottle);
   promiserFactory(bottle);
 
   return bottle;

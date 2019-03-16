@@ -11,7 +11,7 @@ other collections (which may be a facade for a REST endpoint) that "I want a {ac
 Then, you get a Signal instance which is a "Subscription" to the remote system that says
 "When the remote collection emits a signal that satisfies me, I will send it out of my stream."
 
-It may do this once or many times. For instance if one signal watches a record, then another 
+It may runner this once or many times. For instance if one signal watches a record, then another 
 signal deletes it, then the first signal might get feedback from either signals in either order.
 
 You might get a signal of data from your request, THEN information that the record was deleted, in that order.

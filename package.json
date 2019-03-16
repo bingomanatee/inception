@@ -13,12 +13,14 @@
     "build": "nwb build-web-module",
     "clean": "nwb clean-module",
     "prepublishOnly": "npm run build",
-    "test": "yarn build;tap test src/*.test.js"
+    "test": "NODE_ENV=test yarn build;tap test src/*.test.js"
   },
   "dependencies": {
     "@wonderlandlabs/looking-glass-engine": "^1.0.12",
+    "@wonderlandlabs/propper": "^2.0.4",
     "axios": "^0.18.0",
     "bottlejs": "^1.7.2",
+    "lodash.clonedeep": "^4.5.0",
     "lodash.get": "^4.4.2",
     "promise-polyfill": "^8.1.0",
     "rxjs": "^6.4.0",
