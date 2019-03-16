@@ -16,6 +16,7 @@ tap.test('Pool', (suite) => {
     let duckResolve;
     let IMPULSE_STATE_NEW;
     let IMPULSE_STATE_SENT;
+    let IMPULSE_STATE_QUEUED;
     let IMPULSE_STATE_RESOLVED;
     let IMPULSE_STATE_ERROR;
 
@@ -41,6 +42,7 @@ tap.test('Pool', (suite) => {
         IMPULSE_STATE_SENT = b.container.IMPULSE_STATE_SENT;
         IMPULSE_STATE_RESOLVED = b.container.IMPULSE_STATE_RESOLVED;
         IMPULSE_STATE_ERROR = b.container.IMPULSE_STATE_ERROR;
+        IMPULSE_STATE_QUEUED = b.container.IMPULSE_STATE_QUEUED;
     };
 
     suite.test('.channels, .addChannel', (testChannels) => {
@@ -84,7 +86,7 @@ tap.test('Pool', (suite) => {
             let impulse = ducks.impulse('put', {name: 'Donald'});
             const sub = impulse.subscribe(
                 (i) => {
-                    testImpulseSend.ok(impulse.state === IMPULSE_STATE_RESOLVED, 'state is resolved');
+                    testImpulseSend.ok(i.state === IMPULSE_STATE_RESOLVED, 'state is resolved');
                     testImpulseSend.equals(ducksMap.size, 1);
                     const id = Array.from(ducksMap.keys())[0];
                     testImpulseSend.equals(ducksMap.get(id).name, 'Donald');
@@ -93,7 +95,7 @@ tap.test('Pool', (suite) => {
                     testImpulseSend.end();
                 });
             impulse.send();
-            testImpulseSend.ok(impulse.state === IMPULSE_STATE_SENT);
+            testImpulseSend.ok(impulse.state === IMPULSE_STATE_QUEUED);
         });
 
         testImpulse.test('.sync', (testImpulseSend) => {
@@ -102,13 +104,11 @@ tap.test('Pool', (suite) => {
             let impulse = ducks.impulse('put', {name: 'Donald'});
             const sub = impulse.subscribe(
                 (i) => {
-                    console.log('reviseDuck for impulse', inspect(i, {depth: 0}));
-                    console.log('keys:', Array.from(ducksMap.keys()));
                     const id = Array.from(ducksMap.keys())[0];
                     testImpulseSend.equals(ducksMap.get(id).name, 'Donald');
-                    let reviseDuck = ducks.impulse('put', {name: 'Ronald', id}).send();
-                    ducks.impulse('put', {name: 'Daffy'}).send();
                     sub.unsubscribe();
+                    ducks.impulse('put', {name: 'Ronald', id}).send();
+                    ducks.impulse('put', {name: 'Daffy'}).send();
                 },
                 (err) => {
                     console.log('error', err);
@@ -117,32 +117,33 @@ tap.test('Pool', (suite) => {
                 filter: (forImpulse => (otherImpulse) => {
                     const id = lGet(forImpulse, 'response.id');
                     const channelName = lGet(otherImpulse, 'channel.name');
-                    console.log('filtering for ', id, channelName);
+                    let show;
                     switch (channelName) {
                         case 'put':
-                            console.log('other impulse: ', otherImpulse);
-                            const newId = lGet(otherImpulse, 'response.id');
-                            console.log('comparing duck ids: ', id, newId);
-                            return newId === id;
+                            const impulseId = lGet(otherImpulse, 'response.id');
+                            show = impulseId === id;
                             break;
 
                         default:
-                            return false;
+                            show = false;
                     }
+                    return show;
                 }),
                 map: () => (i) => {
                     return lGet(i, 'response');
                 },
                 merge: () => (r) => r,
                 onResponse: (i, duck) => {
-                    console.log('new response', duck);
                     if (duck.name === 'Ronald') {
                         testImpulseSend.end();
                     }
+                    else {
+                        testImpulseSend.fail('bad duck');
+                    }
                 }
-            })
+            });
             impulse.send();
-            testImpulseSend.ok(impulse.state === IMPULSE_STATE_SENT);
+            testImpulseSend.ok(impulse.state === IMPULSE_STATE_QUEUED);
         });
 
         testImpulse.end();

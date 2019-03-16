@@ -114,11 +114,7 @@ export default (bottle) => {
                         const channel = this.channels.get(name);
                         if (!(channel instanceof Channel)) {
                             if (typeof channel === 'function') {
-                                this.channels.set(name, new Channel({
-                                    pool: this,
-                                    name,
-                                    response: channel
-                                }));
+                                this.addChannel(name, channel);
                             } else if (typeof channel === "object") {
                                 this.channels.set(name, new Channel({
                                     ...channel,
@@ -131,15 +127,19 @@ export default (bottle) => {
             };
 
             addChannel(name, resolver = false, params = {}, force = false) {
-                if (!force && this.channels.has(name)) {
+                if (!force && this.can(name)) {
                     throw error('duplicate channel', {
                         pool: this,
                         name
                     });
                 }
-                let p = new Channel({name, pool: this, resolver, params});
-                this.channels.set(name, p);
-                return
+                if (resolver instanceof Channel) {
+                    this.set(name, resolver);
+                } else {
+                    let p = new Channel({name, pool: this, resolver, params});
+                    this.channels.set(name, p);
+                }
+                return this;
             }
 
             impulse(name, ...options) {

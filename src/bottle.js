@@ -6,15 +6,17 @@ import impulseFactory from './Impulse';
 import catchFactory from './rxCatch';
 import promiserFactory from './Promiser';
 import unsetFactory from './utils';
+import requestPoolFactory from './RestPool';
 
 export default () => {
-  let bottle = new Bottle();
-  unsetFactory(bottle);
-  collFactory(bottle);
-  fetcherFactory(bottle);
-  catchFactory(bottle);
-  impulseFactory(bottle);
-  promiserFactory(bottle);
+    let bottle = new Bottle();
+    unsetFactory(bottle);
+    collFactory(bottle);
+    fetcherFactory(bottle);
+    catchFactory(bottle);
+    impulseFactory(bottle);
+    promiserFactory(bottle);
+    requestPoolFactory(bottle);
 
-  return bottle;
+    return bottle;
 }

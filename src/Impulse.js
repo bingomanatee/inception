@@ -6,22 +6,22 @@ import {filter as rxFilter, map as rxMap} from 'rxjs/operators';
 export default (bottle) => {
 
     bottle.factory('IMPULSE_STATE_NEW', ({Symbol}) => Symbol('IMPULSE_STATE_NEW'));
-
+    bottle.factory('IMPULSE_STATE_QUEUED', ({Symbol}) => Symbol('IMPULSE_STATE_QUEUED'));
     bottle.factory('IMPULSE_STATE_SENT', ({Symbol}) => Symbol('IMPULSE_STATE_SENT'));
-
     bottle.factory('IMPULSE_STATE_RESOLVED', ({Symbol}) => Symbol('IMPULSE_STATE_RESOLVED'));
-
+    bottle.factory('IMPULSE_STATE_UPDATED', ({Symbol}) => Symbol('IMPULSE_STATE_UPDATED'));
     bottle.factory('IMPULSE_STATE_ERROR', ({Symbol}) => Symbol('IMPULSE_STATE_ERROR'));
-
     bottle.factory('IMPULSE_STATE_COMPLETE', ({Symbol}) => Symbol('IMPULSE_STATE_COMPLETE'));
 
     bottle.factory('Impulse', ({
                                    UNSET, ifUnset, noop, Promiser, error,
                                    IMPULSE_STATE_NEW,
+                                   IMPULSE_STATE_QUEUED,
                                    IMPULSE_STATE_SENT,
                                    IMPULSE_STATE_RESOLVED,
                                    IMPULSE_STATE_ERROR,
-                                   IMPULSE_STATE_COMPLETE
+                                   IMPULSE_STATE_COMPLETE,
+                                   IMPULSE_STATE_UPDATED
                                }) => {
 
         /**
@@ -49,8 +49,6 @@ export default (bottle) => {
             subscribe(...params) {
                 return this.pool.responses.pipe(
                     rxFilter((i) => {
-                        console.log(this.impulseId,
-                            '=========== response filters:', i.impulseId);
                         return i.impulseId === this.impulseId
                     })
                 ).subscribe(...params);
@@ -86,7 +84,7 @@ export default (bottle) => {
                             {impulse: this});
                         break;
                 }
-                this.state = IMPULSE_STATE_SENT;
+                this.state = IMPULSE_STATE_QUEUED;
             }
 
             clone() {
@@ -100,17 +98,23 @@ export default (bottle) => {
             respond(error, response) {
                 if (error) {
                     this.error = error;
-                    this.state = IMPULSE_STATE_ERROR
+                    this.state = IMPULSE_STATE_ERROR;
                     this.reject(error);
+                    this.pool.responses.error(this);
                 } else {
                     this.response = response;
-                    this.state = IMPULSE_STATE_RESOLVED;
+                    if (!this.resolved) {
+                        this.resolve(response);
+                        this.state = IMPULSE_STATE_RESOLVED;
+                    } else {
+                        this.state = IMPULSE_STATE_UPDATED;
+                    }
                     this.pool.responses.next(this);
-                    this.resolve(response);
                 }
             }
 
             perform() {
+                this.status = IMPULSE_STATE_SENT;
                 return this.channel.perform(this);
             }
 
@@ -140,7 +144,7 @@ export default (bottle) => {
 
                 let stream = this.pool
                     .responses
-                    .pipe(rxFilter(i => i.impulseId !== this.impulseId))
+                    .pipe(rxFilter(i => (i.impulseId !== this.impulseId) && (i.state !== IMPULSE_STATE_UPDATED)));
                 let pipes = [];
                 if (filter) {
                     pipes.push(rxFilter(filter(this)));
@@ -153,7 +157,7 @@ export default (bottle) => {
                 }
 
                 const sub = stream.subscribe((response) => {
-                    let newResponse
+                    let newResponse;
                     try {
                         newResponse = myMerge(response, this);
                     } catch (err) {
