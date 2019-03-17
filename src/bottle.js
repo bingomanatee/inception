@@ -6,7 +6,8 @@ import impulseFactory from './Impulse';
 import catchFactory from './rxCatch';
 import promiserFactory from './Promiser';
 import unsetFactory from './utils';
-import requestPoolFactory from './RestPool';
+import restPoolFactory from './RestPool';
+import dataMapFactory from './DataMap';
 
 export default () => {
     let bottle = new Bottle();
@@ -16,7 +17,7 @@ export default () => {
     catchFactory(bottle);
     impulseFactory(bottle);
     promiserFactory(bottle);
-    requestPoolFactory(bottle);
-
+    restPoolFactory(bottle);
+    dataMapFactory(bottle);
     return bottle;
 }

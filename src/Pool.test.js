@@ -19,6 +19,7 @@ tap.test('Pool', (suite) => {
     let IMPULSE_STATE_QUEUED;
     let IMPULSE_STATE_RESOLVED;
     let IMPULSE_STATE_ERROR;
+    let noop;
 
     const beforeEach = (channels) => {
         const b = bottle();
@@ -32,17 +33,18 @@ tap.test('Pool', (suite) => {
             let duck = {
                 ...i.options,
                 id: lGet(i, 'options.id', ++nextId),
-            }
+            };
 
             ducksMap.set(duck.id, duck);
             return Promise.resolve(duck);
-        }
+        };
 
         IMPULSE_STATE_NEW = b.container.IMPULSE_STATE_NEW;
         IMPULSE_STATE_SENT = b.container.IMPULSE_STATE_SENT;
         IMPULSE_STATE_RESOLVED = b.container.IMPULSE_STATE_RESOLVED;
         IMPULSE_STATE_ERROR = b.container.IMPULSE_STATE_ERROR;
         IMPULSE_STATE_QUEUED = b.container.IMPULSE_STATE_QUEUED;
+        noop = b.container.noop;
     };
 
     suite.test('.channels, .addChannel', (testChannels) => {
@@ -114,13 +116,14 @@ tap.test('Pool', (suite) => {
                     console.log('error', err);
                 });
             impulse.sync({
-                filter: (forImpulse => (otherImpulse) => {
+                filter: (otherImpulse, forImpulse) => {
                     const id = lGet(forImpulse, 'response.id');
                     const channelName = lGet(otherImpulse, 'channel.name');
+                    const impulseId = lGet(otherImpulse, 'response.id');
+
                     let show;
                     switch (channelName) {
                         case 'put':
-                            const impulseId = lGet(otherImpulse, 'response.id');
                             show = impulseId === id;
                             break;
 
@@ -128,16 +131,11 @@ tap.test('Pool', (suite) => {
                             show = false;
                     }
                     return show;
-                }),
-                map: () => (i) => {
-                    return lGet(i, 'response');
                 },
-                merge: () => (r) => r,
                 onResponse: (i, duck) => {
                     if (duck.name === 'Ronald') {
                         testImpulseSend.end();
-                    }
-                    else {
+                    } else {
                         testImpulseSend.fail('bad duck');
                     }
                 }

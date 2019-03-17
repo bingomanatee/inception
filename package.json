@@ -21,10 +21,12 @@
     "axios": "^0.18.0",
     "bottlejs": "^1.7.2",
     "lodash.clonedeep": "^4.5.0",
+    "lodash.flattendeep": "^4.4.0",
     "lodash.get": "^4.4.2",
     "promise-polyfill": "^8.1.0",
     "rxjs": "^6.4.0",
     "tap": "^12.6.0",
+    "url-join": "^4.0.0",
     "uuid": "^3.3.2",
     "yup": "^0.26.10"
   },

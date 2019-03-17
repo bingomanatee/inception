@@ -123,50 +123,36 @@ export default (bottle) => {
              * of this impulse based on subsequent data from the pool.
              *
              *
-             * @param filter {function} a *factory* function that returns a filter based on this impulse
-             * @param map {function} a *factory* function that returns a
+             * @param filter {function(otherImpulse, impulse)} returns a boolean to use this item
+             * @param map {function(otherImpulse, impulse)} transforms the otherImulse
              * @param onError {function} a stream listener
              * @param onResponse {function} a stream listener
-             * @param merge {function} a *factory* function that returns a merge function based on this impulse
              * @returns {Subscription}
              */
             sync({
                      filter = UNSET,
-                     map = UNSET,
+                     map = (i) => i.response,
                      onError = noop,
                      onResponse = noop,
-                     merge
                  }) {
-                if (!(typeof merge === 'function')) {
-                    throw error('update requires merge function', this)
-                }
-                const myMerge = merge(this);
 
                 let stream = this.pool
                     .responses
                     .pipe(rxFilter(i => (i.impulseId !== this.impulseId) && (i.state !== IMPULSE_STATE_UPDATED)));
-                let pipes = [];
+                let pipes = [rxMap((otherImpulse) => map(otherImpulse, this))];
                 if (filter) {
-                    pipes.push(rxFilter(filter(this)));
+                    pipes.unshift(rxFilter((otherImpulse) => filter(otherImpulse, this)));
                 }
-                if (map) {
-                    pipes.push(rxMap(map(this)));
-                }
-                if (pipes.length) {
-                    stream = stream.pipe(...pipes);
-                }
+                stream = stream.pipe(...pipes);
 
+                /**
+                 * @response {variant} is the output from map; by default its an impulse
+                 * @type {Subscription}
+                 */
                 const sub = stream.subscribe((response) => {
-                    let newResponse;
-                    try {
-                        newResponse = myMerge(response, this);
-                    } catch (err) {
-                        onError(err);
-                        return;
-                    }
-
-                    this.respond(null, newResponse);
-                    onResponse(this, newResponse, response);
+                    let lastResponse = this.response;
+                    this.respond(null, response);
+                    onResponse(this, response, lastResponse);
                 }, onError);
                 this.updaters.add(sub);
                 return sub;
