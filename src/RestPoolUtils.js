@@ -27,13 +27,24 @@ export default (bottle) => {
             const fetcher = lGet(pool, 'fetcher', restFetcher);
 
             const filter = (otherImpulse) => {
+
+                if (otherImpulse.channel.name === 'delete') {
+                    let id = restDataFromImpulse(otherImpulse, true);
+                    return impulse.response instanceof DataMap && impulse.response.has(id);
+                }
+
                 return impulse.response instanceof DataMap &&
                     otherImpulse.response instanceof DataMap &&
                     impulse.response.overlaps(otherImpulse.response);
             };
 
             const map = (otherImpulse, impulse) => {
-                impulse.response.updateFrom(otherImpulse.response);
+                if (otherImpulse.channel.name === 'delete') {
+                    let id = restDataFromImpulse(otherImpulse, true);
+                    impulse.response.delete(id);
+                } else {
+                    impulse.response.updateFrom(otherImpulse.response);
+                }
                 return impulse.response;
             };
 
@@ -53,10 +64,12 @@ export default (bottle) => {
             }
             impulse.pool.updateData(response);
             impulse.respond(null, response);
-            impulse.sync({
-                filter,
-                map
-            });
+            if (impulse.pool.track) {
+                impulse.sync({
+                    filter,
+                    map
+                });
+            }
         }));
 
         channels.set('getAll', d(async ({fetcher, impulse, requestOptions, filter, map}) => {
@@ -66,12 +79,13 @@ export default (bottle) => {
             const options = {headers, query};
             response = await fetcher.get(impulse.pool.url(''), options);
             response = impulse.pool.toDataMap(response.data, impulse);
-
             impulse.pool.updateData(response);
-            impulse.sync({
-                filter,
-                map
-            });
+            if (impulse.pool.track) {
+                impulse.sync({
+                    filter,
+                    map
+                });
+            }
             return response;
         }));
 
@@ -79,7 +93,7 @@ export default (bottle) => {
             const {headers, query, id} = requestOptions;
             let response;
             const options = {headers, query};
-            response = await fetcher.get(impulse.pool.url(id), options);
+            response = await fetcher.delete(impulse.pool.url(id), options);
             return response;
         }));
 
@@ -91,10 +105,12 @@ export default (bottle) => {
             response = impulse.pool.toDataMap(response.data, impulse);
 
             impulse.pool.updateData(response);
-            impulse.sync({
-                filter,
-                map
-            });
+            if (impulse.pool.track) {
+                impulse.sync({
+                    filter,
+                    map
+                });
+            }
             return response;
         }));
 
@@ -133,7 +149,7 @@ export default (bottle) => {
                         id = options.shift();
                         break;
                     case 'put':
-                        fields = options.shift;
+                        fields = options.shift();
                         break;
 
                     default:

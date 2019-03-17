@@ -18,6 +18,10 @@ export default bottle => {
                 return this._map.entries();
             }
 
+            get(k){
+                return this._map.get(k);
+            }
+
             set(...a) {
                 return this._map.set(...a);
             }
@@ -93,22 +97,17 @@ export default bottle => {
              */
             updateFrom(otherMap, useAll = false) {
                 if (otherMap.pool !== this.pool) {
-                    throw error('attempt to merge data from wrong pool', {
+                    console.log(error('attempt to merge data from wrong pool', {
                         map: this,
                         otherMap
-                    })
+                    }))
                 }
 
-                if (useAll) {
-                    otherMap.forEach((value, key) => {
+                otherMap.forEach((value, key) => {
+                    if (useAll || (this.has(key))) {
                         this.set(key, value);
-                    })
-                } else {
-                    let sharedKeys = this.sharedKeys(otherMap);
-                    sharedKeys.forEach(key => {
-                        this.set(key, otherMap.get(key))
-                    });
-                }
+                    }
+                });
             }
         }
     });

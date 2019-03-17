@@ -50,7 +50,6 @@ export default (bottle) => {
                 this._params = params;
             }
 
-
             get rootURL() {
                 return this._rootURL;
             }

@@ -41,7 +41,6 @@ export default (bottle) => {
                 }
 
                 impulse.respond(error, response);
-                return impulse;
             }
 
             /**

@@ -68,6 +68,26 @@ tap.test('Pool', (suite) => {
                     status: 200,
                     data: duck
                 })
+            },
+
+            delete(url) {
+                const id = parseInt(url.substr(ROOT_URL.length));
+                ducksMap.delete(id);
+                return Promise.resolve({
+                    status: 200
+                });
+            },
+
+            post(url, duck) {
+                const id = ++nextId;
+
+                let savedDuck = {id, ...duck};
+                ducksMap.set(id, savedDuck);
+
+                return Promise.resolve({
+                    status: 200,
+                    data: savedDuck
+                })
             }
         };
 
@@ -84,15 +104,92 @@ tap.test('Pool', (suite) => {
         IMPULSE_STATE_QUEUED = b.container.IMPULSE_STATE_QUEUED;
     };
 
-    suite.test('.put/get', async (putGetTest) => {
-        beforeEach();
-        const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
-        await impulse.send();
+    suite.test('.put/get', (putGetTest) => {
+        putGetTest.test('simple', async (putGetTestSimple) => {
+            beforeEach();
+            const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
+            await impulse.send();
 
-        putGetTest.equals(ducksMap.size, 1, 'has ONE duck');
-        const values = Array.from(impulse.response.values());
-        putGetTest.equals(values[0].name, 'Donald', 'is donald');
+            putGetTestSimple.equals(ducksMap.size, 1, 'has ONE duck');
+            const values = Array.from(impulse.response.values());
+            putGetTestSimple.equals(values[0].name, 'Donald');
+            putGetTestSimple.end();
+        });
+
+        putGetTest.test('syncing', async (putGetTestSyncing) => {
+            beforeEach();
+            const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
+            await impulse.send();
+            await ducks.impulse('put', {id: 1, name: 'Ronald'}).send();
+            const values = Array.from(impulse.response.values());
+            putGetTestSyncing.equals(values[0].name, 'Ronald', 'name gets updated to Ronald');
+            putGetTestSyncing.end();
+        });
+
+        putGetTest.test('syncing ignores other records', async (putGSFilters) => {
+            beforeEach();
+            const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
+            await impulse.send();
+            let messages = 0;
+            impulse.subscribe(() => ++messages);
+            putGSFilters.equal(messages, 0);
+            await ducks.impulse('put', {id: 2, name: 'Ronald'}).send();
+            putGSFilters.equal(messages, 0);
+            putGSFilters.end();
+        });
+
         putGetTest.end();
+    });
+
+    suite.test('.post', (postGetTest) => {
+        postGetTest.test('simple', async (postGetTestSimple) => {
+            beforeEach();
+            const impulse = ducks.impulse('post', {name: 'Donald'});
+            await impulse.send();
+            postGetTestSimple.equals(ducksMap.size, 1, 'has ONE duck');
+            const values = Array.from(impulse.response.values());
+            postGetTestSimple.equals(values[0].name, 'Donald');
+            postGetTestSimple.equals(values[0].id, 1);
+            postGetTestSimple.end();
+        });
+
+        postGetTest.test('syncing', async (postGetTestSyncing) => {
+            beforeEach();
+            const impulse = ducks.impulse('post', {name: 'Donald'});
+            await impulse.send();
+            await ducks.impulse('put', {id: 1, name: 'Ronald'}).send();
+            const values = Array.from(impulse.response.values());
+            postGetTestSyncing.equals(values[0].name, 'Ronald', 'name gets updated to Ronald');
+            postGetTestSyncing.end();
+        });
+
+        postGetTest.test('syncing ignores other records', async (postGSFilters) => {
+            beforeEach();
+            const impulse = ducks.impulse('post', {id: 1, name: 'Donald'});
+            await impulse.send();
+            let messages = 0;
+            impulse.subscribe(() => ++messages);
+            postGSFilters.equal(messages, 0);
+            await ducks.impulse('put', {id: 2, name: 'Ronald'}).send();
+            postGSFilters.equal(messages, 0);
+            postGSFilters.end();
+        });
+
+        postGetTest.end();
+    });
+    suite.test('.delete', (deleteGetTest) => {
+        deleteGetTest.test('simple', async (deleteGetTestSimple) => {
+            beforeEach();
+            const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
+            await impulse.send();
+            await ducks.impulse('delete', 1).send();
+
+            deleteGetTestSimple.equals(ducksMap.size, 0, 'has no ducks');
+            deleteGetTestSimple.equals(impulse.response.size, 0);
+            deleteGetTestSimple.end();
+        });
+
+        deleteGetTest.end();
     });
 
     suite.end();

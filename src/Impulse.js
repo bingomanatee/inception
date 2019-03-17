@@ -1,5 +1,6 @@
 import uuid from 'uuid/v1';
 import {Subject} from 'rxjs';
+import {inspect} from 'util';
 import cloneDeep from 'lodash.clonedeep';
 import {filter as rxFilter, map as rxMap} from 'rxjs/operators';
 
@@ -98,44 +99,38 @@ export default (bottle) => {
             }
 
             respond(respError, response) {
-                try {
-                    if (this.status === IMPULSE_STATE_COMPLETE) {
-                        console.log('attempt to udpate a complete impulse', respError, response, this);
-                        return null;
+                if (this.status === IMPULSE_STATE_COMPLETE) {
+                    return this;
+                }
+                if (respError) {
+                    this.error = respError;
+                    this.state = IMPULSE_STATE_ERROR;
+                    this.reject(respError);
+                    this.pool.responses.error(this);
+                } else {
+                    const r = response instanceof DataMap ? Array.from(response.entries()) : response;
+                    if (this.response && !response) {
+                        throw error('undefined response replacing');
                     }
-                    if (respError) {
-                        this.error = respError;
-                        this.state = IMPULSE_STATE_ERROR;
-                        this.reject(respError);
-                        this.pool.responses.error(this);
-                        return false;
-                    } else {
-                        const r = response instanceof DataMap ? Array.from(response.entries()) : response;
-                        if (this.response && !response) {
-                            throw error('undefined response replacing');
-                        }
 
-                        if (!this.resolved) {
-                            this.resolve(response);
-                            this.state = IMPULSE_STATE_RESOLVED;
-                        } else {
-                            this.response = response;
-                            this.state = IMPULSE_STATE_UPDATED;
-                        }
-                        this.pool.responses.next(this);
-                        return true;
+                    if (!this.resolved) {
+                        this.resolve(response);
+                        this.state = IMPULSE_STATE_RESOLVED;
+                    } else {
+                        this.response = response;
+                        this.state = IMPULSE_STATE_UPDATED;
                     }
-                } catch (err) {
-                    console.log('----- error in response:', err);
+                    this.pool.responses.next(this);
                 }
                 return this;
             }
 
             toJSON() {
-                const r = this.response instanceof DataMap ? Array.from(this.response.entries()) : this.response;
+                const r = this.response instanceof DataMap ? inspect(Array.from(this.response.entries())) : this.response;
                 return {
-                    status: this.status,
+                    state: this.state,
                     options: this.options,
+                    channel: this.channel.name,
                     response: r,
                     error: this.error,
                     resolved: this.resolved
@@ -143,7 +138,7 @@ export default (bottle) => {
             }
 
             perform() {
-                this.status = IMPULSE_STATE_SENT;
+                this.state = IMPULSE_STATE_SENT;
                 return this.channel.perform(this);
             }
 
