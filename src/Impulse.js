@@ -21,7 +21,8 @@ export default (bottle) => {
                                    IMPULSE_STATE_RESOLVED,
                                    IMPULSE_STATE_ERROR,
                                    IMPULSE_STATE_COMPLETE,
-                                   IMPULSE_STATE_UPDATED
+                                   IMPULSE_STATE_UPDATED,
+                                   DataMap,
                                }) => {
 
         /**
@@ -85,6 +86,7 @@ export default (bottle) => {
                         break;
                 }
                 this.state = IMPULSE_STATE_QUEUED;
+                return this;
             }
 
             clone() {
@@ -95,21 +97,48 @@ export default (bottle) => {
                 });
             }
 
-            respond(error, response) {
-                if (error) {
-                    this.error = error;
-                    this.state = IMPULSE_STATE_ERROR;
-                    this.reject(error);
-                    this.pool.responses.error(this);
-                } else {
-                    this.response = response;
-                    if (!this.resolved) {
-                        this.resolve(response);
-                        this.state = IMPULSE_STATE_RESOLVED;
-                    } else {
-                        this.state = IMPULSE_STATE_UPDATED;
+            respond(respError, response) {
+                try {
+                    if (this.status === IMPULSE_STATE_COMPLETE) {
+                        console.log('attempt to udpate a complete impulse', respError, response, this);
+                        return null;
                     }
-                    this.pool.responses.next(this);
+                    if (respError) {
+                        this.error = respError;
+                        this.state = IMPULSE_STATE_ERROR;
+                        this.reject(respError);
+                        this.pool.responses.error(this);
+                        return false;
+                    } else {
+                        const r = response instanceof DataMap ? Array.from(response.entries()) : response;
+                        if (this.response && !response) {
+                            throw error('undefined response replacing');
+                        }
+
+                        if (!this.resolved) {
+                            this.resolve(response);
+                            this.state = IMPULSE_STATE_RESOLVED;
+                        } else {
+                            this.response = response;
+                            this.state = IMPULSE_STATE_UPDATED;
+                        }
+                        this.pool.responses.next(this);
+                        return true;
+                    }
+                } catch (err) {
+                    console.log('----- error in response:', err);
+                }
+                return this;
+            }
+
+            toJSON() {
+                const r = this.response instanceof DataMap ? Array.from(this.response.entries()) : this.response;
+                return {
+                    status: this.status,
+                    options: this.options,
+                    response: r,
+                    error: this.error,
+                    resolved: this.resolved
                 }
             }
 

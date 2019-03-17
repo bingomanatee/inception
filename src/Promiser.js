@@ -22,33 +22,29 @@ export default (bottle) => {
              * resolves that value and takes the result as the change's value
              * then returns it.
              *
-             * @param value {variant} optional
              * @returns {Promise}
+             * @param response
              */
-            resolve(response = UNSET) {
+            resolve(response) {
                 if (this.resolved) {
                     return this.promise;
                 }
 
-                if (response !== UNSET) {
-                    this.response = response;
-                }
+                this.response = response;
 
                 this._resolved = true;
-                this._done(this);
+                this._done(response);
                 return this.promise;
             }
 
-            reject(response = UNSET) {
+            reject(error) {
                 if (this.resolved) {
                     return this.promise;
                 }
 
                 this._resolved = true;
 
-                if (response !== UNSET) {
-                    this.response = response;
-                }
+                this.error = error;
 
                 this._fail(this);
                 return this.promise;

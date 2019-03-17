@@ -179,7 +179,7 @@ export default (bottle) => {
             flush() {
                 this.pending.forEach(impulse => {
                     impulse.perform();
-                })
+                });
                 this.pending.clear();
             }
 

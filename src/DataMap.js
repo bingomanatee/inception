@@ -1,14 +1,49 @@
-
 export default bottle => {
     bottle.factory('DataMap', () => {
-        return class DataMap extends Map {
+        return class DataMap {
             constructor(records, pool) {
-                super();
+                this._map = new Map();
                 this.pool = pool;
                 (Array.isArray(records) ? records : [records]).forEach(data => {
                     const id = data[pool.idField];
                     this.set(id, data);
                 })
+            }
+
+            get size() {
+                return this._map.size;
+            }
+
+            entries() {
+                return this._map.entries();
+            }
+
+            set(...a) {
+                return this._map.set(...a);
+            }
+
+            has(k) {
+                return this._map.has(k);
+            }
+
+            keys() {
+                return this._map.keys()
+            }
+
+            clear() {
+                return this._map.clear()
+            }
+
+            delete(k) {
+                return this._map.delete(k)
+            }
+
+            values() {
+                return this._map.values()
+            }
+
+            forEach(fn) {
+                return this._map.forEach(fn)
             }
 
             overlaps(otherDataMap) {

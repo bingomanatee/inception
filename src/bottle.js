@@ -7,6 +7,7 @@ import catchFactory from './rxCatch';
 import promiserFactory from './Promiser';
 import unsetFactory from './utils';
 import restPoolFactory from './RestPool';
+import restPoolUtilFactory from './RestPoolUtils';
 import dataMapFactory from './DataMap';
 
 export default () => {
@@ -19,5 +20,6 @@ export default () => {
     promiserFactory(bottle);
     restPoolFactory(bottle);
     dataMapFactory(bottle);
+    restPoolUtilFactory(bottle);
     return bottle;
 }
