@@ -108,11 +108,12 @@ export default (bottle) => {
                     this.reject(respError);
                     this.pool.responses.error(this);
                 } else {
-                    const r = response instanceof DataMap ? Array.from(response.entries()) : response;
                     if (this.response && !response) {
-                        throw error('undefined response replacing');
+                        throw error('undefined response replacing', {
+                            response,
+                            impulse: this.toJSON()
+                        });
                     }
-
                     if (!this.resolved) {
                         this.resolve(response);
                         this.state = IMPULSE_STATE_RESOLVED;

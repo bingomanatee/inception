@@ -75,7 +75,7 @@ export default (bottle) => {
         return PoolRunner;
     });
 
-    bottle.factory('Pool', function ({Impulse, Channel, poolRunner}) {
+    bottle.factory('Pool', function ({Impulse, Channel, poolRunner, error}) {
         return class Pool {
             constructor(name, channels = {}, params = {}) {
                 this.name = name;
@@ -83,6 +83,7 @@ export default (bottle) => {
                 this.responses = new Subject();
                 this.params = params;
                 this.pending = new Set();
+                this.complete = false;
                 this.runner = lGet(params, 'runner', poolRunner)
             }
 
@@ -147,6 +148,7 @@ export default (bottle) => {
                     throw error('pool missing channel:', {
                         name,
                         pool: this,
+                        legalChannels: Array.from(this.channels.keys()),
                         options
                     });
                 }

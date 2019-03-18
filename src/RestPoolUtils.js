@@ -2,20 +2,44 @@ import lGet from 'lodash.get';
 import axios from 'axios';
 
 export default (bottle) => {
-    bottle.constant('REST_ACTIONS', 'get,put,post,delete'.split(','));
+    bottle.constant('REST_ACTIONS', 'get,put,post,delete,getAll'.split(','));
 
     bottle.factory('axios', () => axios);
 
     bottle.factory('restFetcher', ({axios}) => {
         return {
             get: async (url, options) => {
-                const {data} = axios.get(url, options);
+                const {data} = await axios.get(url, options);
                 return data;
             },
             put: async (url, fields, options) => {
-                const {data} = axios.get(url, fields, options);
+                const {data} = await axios.get(url, fields, options);
                 return data;
-            }
+            },
+            post: async (url, fields, options) => {
+                try {
+                    const result = await axios.post(url, fields, options);
+                    return result.data;
+                } catch (err) {
+                    throw err.response;
+                }
+            },
+            delete: async (url, options) => {
+                try {
+                    const result = await axios.delete(url, options);
+                    return result.data;
+                } catch (err) {
+                    throw err.response;
+                }
+            },
+            getAll: async (url, options) => {
+                try {
+                    const result = await axios.get(url, options);
+                    return result.data;
+                } catch (err) {
+                    throw err.response;
+                }
+            },
         }
     });
 
@@ -57,13 +81,17 @@ export default (bottle) => {
             try {
                 const options = {headers, query};
                 response = await fetcher.get(impulse.pool.url(id), options);
-                response = impulse.pool.toDataMap(response.data, impulse);
+                response = impulse.pool.toDataMap(response, impulse);
             } catch (err) {
                 impulse.respond(err);
                 return;
             }
             impulse.pool.updateData(response);
-            impulse.respond(null, response);
+            if (response) {
+                impulse.respond(null, response);
+            } else {
+                console.log('no response', impulse, response);
+            }
             if (impulse.pool.track) {
                 impulse.sync({
                     filter,
@@ -78,7 +106,7 @@ export default (bottle) => {
 
             const options = {headers, query};
             response = await fetcher.get(impulse.pool.url(''), options);
-            response = impulse.pool.toDataMap(response.data, impulse);
+            response = impulse.pool.toDataMap(response, impulse);
             impulse.pool.updateData(response);
             if (impulse.pool.track) {
                 impulse.sync({
@@ -102,7 +130,7 @@ export default (bottle) => {
             let response;
             const options = {headers, query};
             response = await fetcher.put(impulse.pool.url(id), fields, options);
-            response = impulse.pool.toDataMap(response.data, impulse);
+            response = impulse.pool.toDataMap(response, impulse);
 
             impulse.pool.updateData(response);
             if (impulse.pool.track) {
@@ -120,7 +148,7 @@ export default (bottle) => {
 
             const options = {headers, query};
             response = await fetcher.post(impulse.pool.url(''), fields, options);
-            response = impulse.pool.toDataMap(response.data, impulse);
+            response = impulse.pool.toDataMap(response, impulse);
 
             impulse.pool.updateData(response);
             impulse.sync({

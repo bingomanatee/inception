@@ -13,7 +13,8 @@
     "build": "nwb build-web-module",
     "clean": "nwb clean-module",
     "prepublishOnly": "npm run build",
-    "test": "yarn build;tap test src/*.test.js"
+    "test": "yarn build;tap test src/*.test.js",
+    "test:int": "yarn build;tap test integration/*.int.js"
   },
   "dependencies": {
     "@wonderlandlabs/looking-glass-engine": "^1.0.12",
