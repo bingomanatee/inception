@@ -26,13 +26,13 @@
     "lodash.get": "^4.4.2",
     "promise-polyfill": "^8.1.0",
     "rxjs": "^6.4.0",
-    "tap": "^12.6.0",
     "url-join": "^4.0.0",
     "uuid": "^3.3.2",
     "yup": "^0.26.10"
   },
   "devDependencies": {
-    "nwb": "0.23.x"
+    "nwb": "0.23.x",
+    "tap": "^12.6.1"
   },
   "author": "",
   "homepage": "",

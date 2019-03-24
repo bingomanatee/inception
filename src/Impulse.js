@@ -1,8 +1,9 @@
-import uuid from 'uuid/v1';
+import uuid from 'uuid/v4';
 import {Subject} from 'rxjs';
 import {inspect} from 'util';
 import cloneDeep from 'lodash.clonedeep';
-import {filter as rxFilter, map as rxMap} from 'rxjs/operators';
+import {filter, map, startWith} from 'rxjs/operators';
+import lGet from 'lodash.get';
 
 export default (bottle) => {
 
@@ -16,6 +17,7 @@ export default (bottle) => {
 
     bottle.factory('Impulse', ({
                                    UNSET, ifUnset, noop, Promiser, error,
+                                   isUnset,
                                    IMPULSE_STATE_NEW,
                                    IMPULSE_STATE_QUEUED,
                                    IMPULSE_STATE_SENT,
@@ -32,28 +34,20 @@ export default (bottle) => {
          * so it can be used as a "draft" or prepared query that you
          * build up and send.
          *
-         * Once set, its response subscribes to the pools responses
+         * Once set, its response subscribes to the pools updates
          * stream so that it can change (or present warnings) when
-         * the pool's other impulse responses are relevant to the response.
+         * the pool's other impulse updates are relevant to the response.
          */
         class Impulse extends Promiser {
-            constructor({channel, pool, options}) {
+            constructor({channel, pool, options: message}) {
                 super();
                 this.impulseId = uuid();
                 this.channel = channel;
-                this.options = options;
+                this.message = message;
                 this.pool = pool;
                 this.state = IMPULSE_STATE_NEW;
                 this.response = null;
                 this.error = null;
-            }
-
-            subscribe(...params) {
-                return this.pool.responses.pipe(
-                    rxFilter((i) => {
-                        return i.impulseId === this.impulseId
-                    })
-                ).subscribe(...params);
             }
 
             get updaters() {
@@ -63,11 +57,19 @@ export default (bottle) => {
                 return this._updaters;
             }
 
+            addSubscriber(sub) {
+                if (this.state === IMPULSE_STATE_COMPLETE) {
+                    sub.complete();
+                } else {
+                    this.updaters.add(sub);
+                }
+            }
+
             complete() {
                 if (this._updaters) {
                     this._updaters.forEach(s => s.unsubscribe());
-                    this.state = IMPULSE_STATE_COMPLETE;
                 }
+                this.state = IMPULSE_STATE_COMPLETE;
             }
 
             /**
@@ -75,15 +77,13 @@ export default (bottle) => {
              * You can send() more than once to re-poll pools.
              */
             send() {
-                // ?? clear out old respone/error?
                 switch (this.state) {
                     case IMPULSE_STATE_NEW:
                         this.pool.submit(this);
                         break;
 
                     default:
-                        throw error('cannot send impulse from state' + this.state.toString(),
-                            {impulse: this});
+                        throw error('cannot send impulse from state', this.toJSON());
                         break;
                 }
                 this.state = IMPULSE_STATE_QUEUED;
@@ -93,44 +93,41 @@ export default (bottle) => {
             clone() {
                 return new Impulse({
                     channel: this.channel,
-                    options: cloneDeep(this.options),
+                    options: cloneDeep(this.message),
                     pool: this.pool
                 });
             }
 
-            respond(respError, response) {
-                if (this.status === IMPULSE_STATE_COMPLETE) {
-                    return this;
-                }
-                if (respError) {
-                    this.error = respError;
+            update(updateMessage) {
+                const {error = null, result} = updateMessage;
+
+                if (error) {
+                    this.error = error;
                     this.state = IMPULSE_STATE_ERROR;
-                    this.reject(respError);
-                    this.pool.responses.error(this);
+                    this.reject(error);
+                    this.pool.updates.error(updateMessage);
                 } else {
-                    if (this.response && !response) {
-                        throw error('undefined response replacing', {
-                            response,
-                            impulse: this.toJSON()
-                        });
+                    if (!result) {
+                        console.log('========== undefined result into', this.toJSON());
                     }
                     if (!this.resolved) {
-                        this.resolve(response);
+                        this.resolve(result);
                         this.state = IMPULSE_STATE_RESOLVED;
                     } else {
-                        this.response = response;
+                        this.response = result;
                         this.state = IMPULSE_STATE_UPDATED;
                     }
-                    this.pool.responses.next(this);
                 }
+                this.pool.next(this);
                 return this;
             }
 
             toJSON() {
                 const r = this.response instanceof DataMap ? inspect(Array.from(this.response.entries())) : this.response;
                 return {
+                    impulseId: this.impulseId,
                     state: this.state,
-                    options: this.options,
+                    message: this.message,
                     channel: this.channel.name,
                     response: r,
                     error: this.error,
@@ -139,47 +136,59 @@ export default (bottle) => {
             }
 
             perform() {
-                this.state = IMPULSE_STATE_SENT;
-                return this.channel.perform(this);
+                switch (this.state) {
+                    case IMPULSE_STATE_QUEUED:
+                        this.channel.perform(this);
+                        break;
+
+                    case IMPULSE_STATE_NEW:
+                        this.channel.perform(this);
+                        break;
+
+                    default:
+                        throw error('Cannot perform impulse from state', this.toJSON());
+                }
+                return this;
             }
 
-            /**
-             * creates a listener updates the response property
-             * of this impulse based on subsequent data from the pool.
-             *
-             *
-             * @param filter {function(otherImpulse, impulse)} returns a boolean to use this item
-             * @param map {function(otherImpulse, impulse)} transforms the otherImulse
-             * @param onError {function} a stream listener
-             * @param onResponse {function} a stream listener
-             * @returns {Subscription}
-             */
-            sync({
-                     filter = UNSET,
-                     map = (i) => i.response,
-                     onError = noop,
-                     onResponse = noop,
-                 }) {
-
-                let stream = this.pool
-                    .responses
-                    .pipe(rxFilter(i => (i.impulseId !== this.impulseId) && (i.state !== IMPULSE_STATE_UPDATED)));
-                let pipes = [rxMap((otherImpulse) => map(otherImpulse, this))];
-                if (filter) {
-                    pipes.unshift(rxFilter((otherImpulse) => filter(otherImpulse, this)));
+            get canSubscribe() {
+                let can = false;
+                switch (this.state) {
+                    case IMPULSE_STATE_QUEUED:
+                        can = true;
+                        break;
+                    case IMPULSE_STATE_NEW:
+                        can = true;
+                        break;
                 }
-                stream = stream.pipe(...pipes);
+                return can;
+            }
 
-                /**
-                 * @response {variant} is the output from map; by default its an impulse
-                 * @type {Subscription}
-                 */
-                const sub = stream.subscribe((response) => {
-                    let lastResponse = this.response;
-                    this.respond(null, response);
-                    onResponse(this, response, lastResponse);
-                }, onError);
-                this.updaters.add(sub);
+            observe() {
+                if (!this.canSubscribe) {
+                    throw error('cannot subscribe', this.toJSON())
+                }
+                if (!isUnset(this.channel.observer)) {
+                    let observer =  this.channel.observer(this);
+                    if (observer) {
+                        this.addSubscriber(this.pool.subscribe(observer));
+                    }
+                }
+                return this;
+            }
+
+            subscribe(observer) {
+                if (!this.canSubscribe) {
+                    throw error('cannot subscribe')
+                }
+                let sub = this.pool
+                    .updates
+                    .pipe(
+                        filter(impulse => lGet(impulse, 'impulseId') === this.impulseId),
+                        startWith(this)
+                    ).subscribe(observer);
+
+                this.addSubscriber(sub);
                 return sub;
             }
         }

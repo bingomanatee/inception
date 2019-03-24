@@ -1,46 +1,57 @@
 import {Store} from '@wonderlandlabs/looking-glass-engine';
 import {filter, map} from 'rxjs/operators';
 import lget from 'lodash.get';
-import uuid from 'uuid/v1';
+import uuid from 'uuid/v4';
 
 export default (bottle) => {
 
-    bottle.factory('Channel', ({UNSET, Impulse, error, noop}) => {
+    bottle.factory('Channel', ({UNSET, Update, Impulse, error, noop, isUnset}) => {
         /**
          * A channel is a named operation
          */
         return class Channel {
-            constructor({name, pool, resolver, params = {}}) {
+            constructor({name, pool, action, observer = UNSET, params = {}}) {
                 this.pool = pool;
                 this.name = name || uuid();
-                this.resolver = resolver;
+                this.action = action;
                 this.params = params;
+                this.observer = observer;
             }
 
-            get resolver() {
+            get action() {
                 return this._resolver || noop;
             }
 
-            set resolver(value) {
+            set action(value) {
                 if (this._resolver) {
-                    throw error('cannot redefine Channel.resolver', {resolver: value});
+                    throw error('cannot redefine Channel.action', {resolver: value});
                 }
                 if (!(typeof value === 'function')) {
-                    throw error('Channel.resolver must be a function', {resolver: value});
+                    throw error('Channel.action must be a function', {resolver: value});
                 }
                 this._resolver = value;
             }
 
             async perform(impulse) {
                 let error = null;
-                let response = null;
+                let result = null;
+
                 try {
-                    response = await this.resolver(impulse, this.params);
+                    result = await this.action(impulse, this.params, this);
                 } catch (err) {
+                    console.log(error('error performing ' + this.name, {
+                        error: err.message,
+                        impulse: impulse.toJSON()
+                    }));
                     error = err;
                 }
 
-                impulse.respond(error, response);
+                const update = new Update({
+                    error, result, impulse, channel: this
+                });
+
+                impulse.update(update);
+                return impulse;
             }
 
             /**

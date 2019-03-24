@@ -37,6 +37,10 @@ tap.test('Pool', (suite) => {
                         break;
                 }
 
+                console.log('-------');
+                console.log('returning ', Array.from(result.values()));
+                console.log('from response', response);
+                console.log('-------');
                 return result;
             }
         });
@@ -58,9 +62,15 @@ tap.test('Pool', (suite) => {
         const impulse = userPool.impulse('post', {
             email: 'fred@foo.com',
             name: 'Fred',
+
             password: '12345235'
         });
 
+
+
+
+
+        
         await impulse.send();
 
         let record = impulse.response.values().next().value;
@@ -70,6 +80,7 @@ tap.test('Pool', (suite) => {
 
         console.log('record ---', record);
         let getImpulse = userPool.impulse('get', record._id);
+        console.log('----- second fetch: ', getImpulse.toJSON());
         try {
             await getImpulse.send();
         } catch (err) {

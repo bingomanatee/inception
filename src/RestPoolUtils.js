@@ -48,28 +48,8 @@ export default (bottle) => {
 
         const d = (fn) => (impulse) => {
             const {pool} = impulse;
-            const fetcher = lGet(pool, 'fetcher', restFetcher);
+            const filter = (update) => {
 
-            const filter = (otherImpulse) => {
-
-                if (otherImpulse.channel.name === 'delete') {
-                    let id = restDataFromImpulse(otherImpulse, true);
-                    return impulse.response instanceof DataMap && impulse.response.has(id);
-                }
-
-                return impulse.response instanceof DataMap &&
-                    otherImpulse.response instanceof DataMap &&
-                    impulse.response.overlaps(otherImpulse.response);
-            };
-
-            const map = (otherImpulse, impulse) => {
-                if (otherImpulse.channel.name === 'delete') {
-                    let id = restDataFromImpulse(otherImpulse, true);
-                    impulse.response.delete(id);
-                } else {
-                    impulse.response.updateFrom(otherImpulse.response);
-                }
-                return impulse.response;
             };
 
             return fn({fetcher, impulse, requestOptions: restDataFromImpulse(impulse), filter, map});

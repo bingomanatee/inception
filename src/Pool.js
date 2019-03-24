@@ -75,16 +75,35 @@ export default (bottle) => {
         return PoolRunner;
     });
 
-    bottle.factory('Pool', function ({Impulse, Channel, poolRunner, error}) {
+    bottle.factory('Pool', function ({Impulse, Channel, poolRunner, error, noop}) {
         return class Pool {
             constructor(name, channels = {}, params = {}) {
                 this.name = name;
                 this.channels = channels;
-                this.responses = new Subject();
+                this.updates = new Subject();
                 this.params = params;
                 this.pending = new Set();
                 this.complete = false;
-                this.runner = lGet(params, 'runner', poolRunner)
+                this.runner = lGet(params, 'runner', poolRunner);
+                this.completed = false;
+                this.updates.subscribe(noop, noop, () => {
+                    this.completed = true;
+                })
+            }
+
+            subscribe(...args) {
+                return this.updates.subscribe(...args);
+            }
+
+            next(value) {
+                if (!this.completed) {
+                    this.updates.next(value);
+                } else {
+                    console.log(error('pool sent next value after completed', {
+                        pool: this,
+                        value
+                    }))
+                }
             }
 
             get channels() {
@@ -127,19 +146,26 @@ export default (bottle) => {
                     });
             };
 
-            addChannel(name, resolver = false, params = {}, force = false) {
-                if (!force && this.can(name)) {
+            addChannel(name, definition, force = false) {
+                let channel = definition instanceof Channel ? definition :
+                    typeof definition === 'function' ? new Channel({
+                            action: definition,
+                            name,
+                            pool: this
+                        }) :
+                        new Channel({
+                            ...definition, name, pool: this
+                        });
+
+                channel.pool = this; // insurance for first branch
+
+                if (!force && this.can(channel.name)) {
                     throw error('duplicate channel', {
                         pool: this,
                         name
                     });
                 }
-                if (resolver instanceof Channel) {
-                    this.set(name, resolver);
-                } else {
-                    let p = new Channel({name, pool: this, resolver, params});
-                    this.channels.set(name, p);
-                }
+                this.channels.set(name, channel);
                 return this;
             }
 
@@ -179,10 +205,11 @@ export default (bottle) => {
             }
 
             flush() {
-                this.pending.forEach(impulse => {
-                    impulse.perform();
+                let pending = Array.from(this.pending);
+                pending.forEach(update => {
+                    this.pending.delete(update);
+                    update.perform();
                 });
-                this.pending.clear();
             }
 
             schedulePending() {
