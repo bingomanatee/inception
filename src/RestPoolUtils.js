@@ -1,5 +1,6 @@
 import lGet from 'lodash.get';
 import axios from 'axios';
+import {filter, map, startWith} from 'rxjs/operators';
 
 export default (bottle) => {
     bottle.constant('REST_ACTIONS', 'get,put,post,delete,getAll'.split(','));
@@ -9,209 +10,228 @@ export default (bottle) => {
     bottle.factory('restFetcher', ({axios}) => {
         return {
             get: async (url, options) => {
-                const {data} = await axios.get(url, options);
-                return data;
+                return await axios.get(url, options);
             },
             put: async (url, fields, options) => {
-                const {data} = await axios.get(url, fields, options);
-                return data;
+                return await axios.put(url, fields, options);
             },
             post: async (url, fields, options) => {
-                try {
-                    const result = await axios.post(url, fields, options);
-                    return result.data;
-                } catch (err) {
-                    throw err.response;
-                }
+                return await axios.post(url, fields, options);
             },
             delete: async (url, options) => {
-                try {
-                    const result = await axios.delete(url, options);
-                    return result.data;
-                } catch (err) {
-                    throw err.response;
-                }
+                return await axios.delete(url, options);
             },
             getAll: async (url, options) => {
-                try {
-                    const result = await axios.get(url, options);
-                    return result.data;
-                } catch (err) {
-                    throw err.response;
-                }
+                return await axios.get(url, options);
             },
         }
     });
 
-    bottle.factory('restChannels', ({UNSET, error, restDataFromImpulse, DataMap, restFetcher, impulseID}) => {
-        const channels = new Map();
+    bottle.factory('restChannels', ({UNSET, error, restDataFromImpulse, DataMap, isUnset}) => {
+            const channels = new Map();
 
-        const d = (fn) => (impulse) => {
-            const {pool} = impulse;
-            const filter = (update) => {
-
+            const observeSingle = (impulse, identity = UNSET) => {
+                if (isUnset(identity)) {
+                    identity = restDataFromImpulse(impulse, true);
+                }
+                const sub = impulse.pool.updates.pipe(
+                    filter(otherImpulse => {
+                        let show = false;
+                        if (otherImpulse.impulseId === impulse.impulseId) {
+                            show = false;
+                        } else if (otherImpulse.response instanceof DataMap && otherImpulse.response.has(identity)) {
+                            show = true;
+                        } else if (otherImpulse.channel.name === 'delete') {
+                            let otherId = restDataFromImpulse(otherImpulse, true);
+                            show = otherId === identity;
+                        }
+                        return show;
+                    }),
+                    map((otherImpulse) => {
+                        let result = false;
+                        if (otherImpulse.channel.name === 'delete') {
+                            result = new DataMap([], impulse.pool);
+                        } else if (otherImpulse.response instanceof DataMap) {
+                            result = impulse.response.clone().updateFrom(otherImpulse.response);
+                        }
+                        return result;
+                    })
+                ).subscribe(dm => {
+                    if (dm !== false) {
+                        impulse.update({result: dm});
+                    }
+                    if (dm === null) {
+                        sub.unsubscribe();
+                    }
+                }, (err) => console.log('--------  error observing', impulse.toJSON(), err));
+                impulse.addSubscriber(sub);
             };
 
-            return fn({fetcher, impulse, requestOptions: restDataFromImpulse(impulse), filter, map});
-        };
+            channels.set('get', {
+                action: async (impulse) => {
+                    const {headers, query, identity} = restDataFromImpulse(impulse);
+                    const {fetcher} = impulse.pool;
 
-        channels.set('get', d(async ({fetcher, impulse, requestOptions, filter, map}) => {
-            const {headers, query, id} = requestOptions;
-            let response;
-            try {
-                const options = {headers, query};
-                response = await fetcher.get(impulse.pool.url(id), options);
-                response = impulse.pool.toDataMap(response, impulse);
-            } catch (err) {
-                impulse.respond(err);
-                return;
-            }
-            impulse.pool.updateData(response);
-            if (response) {
-                impulse.respond(null, response);
-            } else {
-                console.log('no response', impulse, response);
-            }
-            if (impulse.pool.track) {
-                impulse.sync({
-                    filter,
-                    map
-                });
-            }
-        }));
-
-        channels.set('getAll', d(async ({fetcher, impulse, requestOptions, filter, map}) => {
-            const {headers, query} = requestOptions;
-            let response;
-
-            const options = {headers, query};
-            response = await fetcher.get(impulse.pool.url(''), options);
-            response = impulse.pool.toDataMap(response, impulse);
-            impulse.pool.updateData(response);
-            if (impulse.pool.track) {
-                impulse.sync({
-                    filter,
-                    map
-                });
-            }
-            return response;
-        }));
-
-        channels.set('delete', d(async ({fetcher, impulse, requestOptions, filter, map}) => {
-            const {headers, query, id} = requestOptions;
-            let response;
-            const options = {headers, query};
-            response = await fetcher.delete(impulse.pool.url(id), options);
-            return response;
-        }));
-
-        channels.set('put', d(async ({fetcher, impulse, requestOptions, filter, map}) => {
-            const {headers, query, id, fields} = requestOptions;
-            let response;
-            const options = {headers, query};
-            response = await fetcher.put(impulse.pool.url(id), fields, options);
-            response = impulse.pool.toDataMap(response, impulse);
-
-            impulse.pool.updateData(response);
-            if (impulse.pool.track) {
-                impulse.sync({
-                    filter,
-                    map
-                });
-            }
-            return response;
-        }));
-
-        channels.set('post', d(async ({fetcher, impulse, requestOptions, filter, map}) => {
-            const {headers, query, fields} = requestOptions;
-            let response;
-
-            const options = {headers, query};
-            response = await fetcher.post(impulse.pool.url(''), fields, options);
-            response = impulse.pool.toDataMap(response, impulse);
-
-            impulse.pool.updateData(response);
-            impulse.sync({
-                filter,
-                map
+                    const options = {headers, query};
+                    const {data} = await fetcher.get(impulse.pool.url(identity), options);
+                    let dataMap = impulse.pool.toDataMap(data, impulse);
+                    impulse.pool.data.updateFrom(dataMap, true);
+                    return dataMap;
+                },
+                observer(impulse) {
+                    return observeSingle(impulse);
+                }
             });
-            return response;
-        }));
 
-        return channels;
-    });
+            channels.set('getAll', {
+                action: async (impulse) => {
+                    const {headers, query} = restDataFromImpulse(impulse);
+                    const {fetcher} = impulse.pool;
+
+                    const options = {headers, query};
+                    const {data} = await fetcher.get(impulse.pool.url(''), options);
+
+                    let dataMap = impulse.pool.toDataMap(data, impulse);
+                    impulse.pool.dataMap = dataMap.clone();
+                    return dataMap;
+                },
+                observer(impulse) {
+                    observeSingle(impulse);
+                }
+            });
+
+            channels.set('delete', {
+                action: async (impulse) => {
+                    const {headers, query, identity} = restDataFromImpulse(impulse);
+                    const {fetcher} = impulse.pool;
+
+                    const options = {headers, query};
+                    await fetcher.delete(impulse.pool.url(identity), options);
+
+                    impulse.pool.data.delete(identity);
+                    return new DataMap([], impulse.pool);
+                },
+                observer() {
+                    // why would you want to observe delete?
+                }
+            });
+
+
+            channels.set('put', {
+                action: async (impulse) => {
+                    const {headers, query, identity, fields} = restDataFromImpulse(impulse);
+                    const {fetcher} = impulse.pool;
+
+                    const options = {headers, query};
+                    const {data} = await fetcher.put(impulse.pool.url(identity), fields, options);
+                    let dataMap = impulse.pool.toDataMap(data, impulse);
+                    impulse.pool.data.updateFrom(dataMap, true);
+                    return dataMap;
+                },
+                observer(impulse) {
+                    return observeSingle(impulse);
+                }
+            });
+
+            channels.set('post', {
+                action: async (impulse) => {
+                    const {headers, query, fields} = restDataFromImpulse(impulse);
+                    const {fetcher} = impulse.pool;
+
+                    const options = {headers, query};
+                    const {data} = await fetcher.post(impulse.pool.url(''), fields, options);
+                    let dataMap = impulse.pool.toDataMap(data, impulse);
+                    impulse.pool.data.updateFrom(dataMap, true);
+                    return dataMap;
+                },
+                observer(impulse) {
+                    let identity;
+                    return impulse.then((result) => {
+                        if (result instanceof DataMap) {
+                            identity = Array.from(result.keys()).pop();
+                            return observeSingle(impulse, identity);
+                        }
+                    });
+                }
+            });
+
+            return channels;
+        }
+    );
 
     bottle.factory('restDataFromImpulse', ({UNSET}) => {
         return function restDataFromImpulse(impulse, idOnly) {
-            const {pool, options} = impulse;
+            const {pool, message} = impulse;
             let {idField, refreshTime} = pool;
-            let id = UNSET;
+            let identity = UNSET;
             let fields = {};
             let headers = {};
             let query = {};
             let config = false;
-
-            if (Array.isArray(options)) {
-                switch (impulse.channel) {
+            if (Array.isArray(message)) {
+                let list = [...message];
+                switch (impulse.channel.name) {
                     case 'get':
-                        id = options.shift();
+                        list = message.shift();
                         break;
                     case 'put':
-                        fields = options.shift();
+                        identity = list.shift();
+                        fields = list.shift();
+                        break;
+                    case 'post':
+                        fields = list.shift();
                         break;
 
                     default:
-                        id = lGet(fields, idField, UNSET);
+                        identity = lGet(fields, idField, UNSET);
                         if (!idOnly) {
-                            fields = options.shift;
+                            fields = list.shift();
                         }
                 }
-                if (options.length) {
-                    config = options.shift();
+                if (message.length) {
+                    config = list.shift();
                 }
-            } else if (typeof options === 'object') {
-                switch (impulse.channel) {
+            } else if (typeof message === 'object') {
+                switch (impulse.channel.name) {
                     case 'get':
-                        id = lGet(options, idField, UNSET);
-                        config = options;
+                        identity = lGet(message, idField, UNSET);
+                        config = message;
                         break;
 
                     case 'post':
-                        fields = options;
+                        fields = message;
                         break;
 
                     case 'put':
-                        id = lGet(options, idField, UNSET);
-                        if (!idOnly) {
-                            if (options.fields) {
-                                fields = options.fields;
-                                config = options;
-                            } else {
-                                fields = options;
-                            }
+                        identity = lGet(message, idField, UNSET);
+                        if (message.fields) {
+                            fields = message.fields;
+                            config = message;
+                        } else {
+                            fields = message;
                         }
                         break;
 
                     default:
-                        id = lGet(options, idField, UNSET);
-                        fields = options;
+                        identity = lGet(message, idField, UNSET);
+                        fields = message;
                 }
             } else {
-                id = options;
+                identity = message;
             }
 
-            if (!idOnly && config && (typeof config === 'object')) {
+            if (idOnly) {
+                return identity;
+            }
+
+            if (config && (typeof config === 'object')) {
                 headers = lGet(config, 'headers', {});
                 query = lGet(config, 'query', {});
                 refreshTime = lGet(config, 'refreshTime', refreshTime);
             }
 
-            if (idOnly) {
-                return id;
-            }
-
             return {
-                id,
+                identity,
                 headers,
                 idField,
                 fields,
@@ -220,4 +240,5 @@ export default (bottle) => {
             }
         }
     });
-};
+}
+;

@@ -90,6 +90,12 @@ export default bottle => {
                 return shared;
             }
 
+            clone(){
+                let dm = new DataMap([], this.pool);
+                dm.updateFrom(this, true);
+                return dm;
+            }
+
             /**
              * copy shared values from the other map into this one.
              * @param otherMap
@@ -108,6 +114,7 @@ export default bottle => {
                         this.set(key, value);
                     }
                 });
+                return this;
             }
         }
     });

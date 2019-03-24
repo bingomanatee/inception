@@ -99,7 +99,14 @@ export default (bottle) => {
             }
 
             update(updateMessage) {
-                const {error = null, result} = updateMessage;
+                let error;
+                let result;
+
+                if ((('error' in updateMessage) || ('result' in updateMessage))) {
+                    ({error = null, result} = updateMessage);
+                } else {
+                    result = updateMessage;
+                }
 
                 if (error) {
                     this.error = error;
@@ -151,7 +158,7 @@ export default (bottle) => {
                 return this;
             }
 
-            get canSubscribe() {
+            get canObserve() {
                 let can = false;
                 switch (this.state) {
                     case IMPULSE_STATE_QUEUED:
@@ -165,22 +172,19 @@ export default (bottle) => {
             }
 
             observe() {
-                if (!this.canSubscribe) {
-                    throw error('cannot subscribe', this.toJSON())
+                if (!this.canObserve) {
+                    throw error('cannot observe', this.toJSON())
                 }
                 if (!isUnset(this.channel.observer)) {
-                    let observer =  this.channel.observer(this);
+                    let observer = this.channel.observer(this);
                     if (observer) {
                         this.addSubscriber(this.pool.subscribe(observer));
                     }
                 }
-                return this;
+                return null;
             }
 
             subscribe(observer) {
-                if (!this.canSubscribe) {
-                    throw error('cannot subscribe')
-                }
                 let sub = this.pool
                     .updates
                     .pipe(

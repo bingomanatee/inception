@@ -33,21 +33,21 @@ export default (bottle) => {
             }
 
             async perform(impulse) {
-                let error = null;
+                let performError = null;
                 let result = null;
 
                 try {
                     result = await this.action(impulse, this.params, this);
                 } catch (err) {
                     console.log(error('error performing ' + this.name, {
-                        error: err.message,
+                        error: err,
                         impulse: impulse.toJSON()
                     }));
-                    error = err;
+                    performError = err;
                 }
 
                 const update = new Update({
-                    error, result, impulse, channel: this
+                    error: performError, result, impulse, channel: this
                 });
 
                 impulse.update(update);

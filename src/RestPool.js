@@ -5,7 +5,10 @@ import urlJoin from 'url-join';
 
 export default (bottle) => {
 
-    bottle.factory('RestPool', ({Pool, noop, error, restFetcher, REST_ACTIONS, UNSET, restChannels, DataMap}) => {
+    bottle.factory('RestPool', ({
+                                    Pool, noop, error, restFetcher, Channel, isUnset,
+                                    REST_ACTIONS, UNSET, restChannels, DataMap
+                                }) => {
 
         function isIterable(obj) {
             // checks for null and undefined
@@ -16,14 +19,14 @@ export default (bottle) => {
         }
 
         class RestPool extends Pool {
-            constructor(name, params) {
+            constructor(name, params = {}) {
                 const {
                     rootURL,
                     idField = 'id',
                     fetcher = restFetcher,
                     actions = REST_ACTIONS,
                     toDataMap = UNSET,
-                    refreshTime = false,
+                    channels = [],
                     track = true,
                     ...config
                 } = params;
@@ -34,8 +37,8 @@ export default (bottle) => {
                 this.idField = idField;
                 this.track = track;
                 this.data = track ? new DataMap([], this) : false;
-                this.refreshTime = refreshTime;
-                if (toDataMap !== UNSET) {
+
+                if (!isUnset(toDataMap)) {
                     this.toDataMap = toDataMap;
                 }
 
@@ -45,6 +48,11 @@ export default (bottle) => {
                     }
                     if (!this.can(action)) {
                         this.addChannel(action, restChannels.get(action));
+                    }
+                });
+                channels.forEach(c => {
+                    if (c instanceof Channel) {
+                        this.addChannel(c);
                     }
                 });
                 this._params = params;
@@ -70,10 +78,10 @@ export default (bottle) => {
                             map.set(data[this.idField], data);
                         }
                     });
-                }
-
-                if (response && (typeof response === 'object') && this.idField in response) {
+                } else if (response && (typeof response === 'object') && this.idField in response) {
                     map.set(response[this.idField], response);
+                } else {
+                    throw error('cannot put response:', response, 'into', this);
                 }
 
                 return map;

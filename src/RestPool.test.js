@@ -6,25 +6,26 @@ const cloneDeep = require('lodash.clonedeep');
 
 import {bottle} from './../lib';
 
-tap.skip('Pool', (suite) => {
-    let RestPool;
-    let Channel;
-    let ducks;
-    let ducksMap;
-    let poolRunner;
-    let nextId;
+tap.test('Pool', (suite) => {
 
-    let IMPULSE_STATE_NEW;
-    let IMPULSE_STATE_SENT;
-    let IMPULSE_STATE_QUEUED;
-    let IMPULSE_STATE_RESOLVED;
-    let IMPULSE_STATE_ERROR;
-    let mockRest;
-    let ROOT_URL;
-    let UNSET;
 
-    const beforeEach = (channels) => {
+    const beforeEach = () => {
         const b = bottle();
+        let RestPool;
+        let Channel;
+        let ducks;
+        let ducksMap;
+        let poolRunner;
+        let nextId;
+
+        let IMPULSE_STATE_NEW;
+        let IMPULSE_STATE_SENT;
+        let IMPULSE_STATE_QUEUED;
+        let IMPULSE_STATE_RESOLVED;
+        let IMPULSE_STATE_ERROR;
+        let mockRest;
+        let ROOT_URL;
+        let UNSET;
         RestPool = b.container.RestPool;
         poolRunner = b.container.poolRunner;
         Channel = b.container.Channel;
@@ -102,14 +103,28 @@ tap.skip('Pool', (suite) => {
         IMPULSE_STATE_RESOLVED = b.container.IMPULSE_STATE_RESOLVED;
         IMPULSE_STATE_ERROR = b.container.IMPULSE_STATE_ERROR;
         IMPULSE_STATE_QUEUED = b.container.IMPULSE_STATE_QUEUED;
+
+        return {
+            ducks,
+            ducksMap,
+            poolRunner,
+            nextId,
+            IMPULSE_STATE_NEW,
+            IMPULSE_STATE_SENT,
+            IMPULSE_STATE_QUEUED,
+            IMPULSE_STATE_RESOLVED,
+            IMPULSE_STATE_ERROR,
+            mockRest,
+            ROOT_URL,
+            UNSET,
+        }
     };
 
     suite.test('.put/get', (putGetTest) => {
         putGetTest.test('simple', async (putGetTestSimple) => {
-            beforeEach();
+            const {ducks, ducksMap} = beforeEach();
             const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
             await impulse.send();
-
             putGetTestSimple.equals(ducksMap.size, 1, 'has ONE duck');
             const values = Array.from(impulse.response.values());
             putGetTestSimple.equals(values[0].name, 'Donald');
@@ -117,8 +132,9 @@ tap.skip('Pool', (suite) => {
         });
 
         putGetTest.test('syncing', async (putGetTestSyncing) => {
-            beforeEach();
+            const {ducks, ducksMap, UNSET} = beforeEach();
             const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
+            impulse.observe();
             await impulse.send();
             await ducks.impulse('put', {id: 1, name: 'Ronald'}).send();
             const values = Array.from(impulse.response.values());
@@ -127,14 +143,15 @@ tap.skip('Pool', (suite) => {
         });
 
         putGetTest.test('syncing ignores other records', async (putGSFilters) => {
-            beforeEach();
+            const {ducks, ducksMap, UNSET} = beforeEach();
             const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
-            await impulse.send();
+            impulse.observe();
             let messages = 0;
             impulse.subscribe(() => ++messages);
-            putGSFilters.equal(messages, 0);
+            await impulse.send();
+            putGSFilters.equal(messages, 2);
             await ducks.impulse('put', {id: 2, name: 'Ronald'}).send();
-            putGSFilters.equal(messages, 0);
+            putGSFilters.equal(messages, 2);
             putGSFilters.end();
         });
 
@@ -143,7 +160,7 @@ tap.skip('Pool', (suite) => {
 
     suite.test('.post', (postGetTest) => {
         postGetTest.test('simple', async (postGetTestSimple) => {
-            beforeEach();
+            const {ducks, ducksMap, UNSET} = beforeEach();
             const impulse = ducks.impulse('post', {name: 'Donald'});
             await impulse.send();
             postGetTestSimple.equals(ducksMap.size, 1, 'has ONE duck');
@@ -153,9 +170,10 @@ tap.skip('Pool', (suite) => {
             postGetTestSimple.end();
         });
 
-        postGetTest.test('syncing', async (postGetTestSyncing) => {
-            beforeEach();
+        postGetTest.test('observing', async (postGetTestSyncing) => {
+            const {ducks, ducksMap, UNSET} = beforeEach();
             const impulse = ducks.impulse('post', {name: 'Donald'});
+            impulse.observe();
             await impulse.send();
             await ducks.impulse('put', {id: 1, name: 'Ronald'}).send();
             const values = Array.from(impulse.response.values());
@@ -163,15 +181,19 @@ tap.skip('Pool', (suite) => {
             postGetTestSyncing.end();
         });
 
-        postGetTest.test('syncing ignores other records', async (postGSFilters) => {
-            beforeEach();
+        postGetTest.test('observing ignores other records', async (postGSFilters) => {
+            const {ducks, ducksMap, UNSET} = beforeEach();
             const impulse = ducks.impulse('post', {id: 1, name: 'Donald'});
-            await impulse.send();
+            impulse.observe();
             let messages = 0;
             impulse.subscribe(() => ++messages);
-            postGSFilters.equal(messages, 0);
+            await impulse.send();
+            postGSFilters.equal(messages, 2);
             await ducks.impulse('put', {id: 2, name: 'Ronald'}).send();
-            postGSFilters.equal(messages, 0);
+            postGSFilters.equal(messages, 2);
+            const values = Array.from(impulse.response.values());
+            postGSFilters.equals(values[0].name, 'Donald', 'name is still Donald');
+
             postGSFilters.end();
         });
 
@@ -179,12 +201,15 @@ tap.skip('Pool', (suite) => {
     });
     suite.test('.delete', (deleteGetTest) => {
         deleteGetTest.test('simple', async (deleteGetTestSimple) => {
-            beforeEach();
+            const {ducks, ducksMap, UNSET} = beforeEach();
             const impulse = ducks.impulse('put', {id: 1, name: 'Donald'});
+            impulse.observe();
             await impulse.send();
+
+            deleteGetTestSimple.equals(impulse.pool.data.size, 1, 'has 1 ducks');
             await ducks.impulse('delete', 1).send();
 
-            deleteGetTestSimple.equals(ducksMap.size, 0, 'has no ducks');
+            deleteGetTestSimple.equals(impulse.pool.data.size, 0, 'has no ducks');
             deleteGetTestSimple.equals(impulse.response.size, 0);
             deleteGetTestSimple.end();
         });
