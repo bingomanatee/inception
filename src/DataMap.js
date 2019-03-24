@@ -100,8 +100,9 @@ export default bottle => {
              * copy shared values from the other map into this one.
              * @param otherMap
              * @param useAll {bool}
+             * @param merge {bool} if true (default), new data is combined with old data. So fields can be added but not deleted.
              */
-            updateFrom(otherMap, useAll = false) {
+            updateFrom(otherMap, useAll = false, merge = true) {
                 if (otherMap.pool !== this.pool) {
                     console.log(error('attempt to merge data from wrong pool', {
                         map: this,
@@ -110,7 +111,10 @@ export default bottle => {
                 }
 
                 otherMap.forEach((value, key) => {
-                    if (useAll || (this.has(key))) {
+                    if ((this.has(key))) {
+                        let merged = merge ? Object.assign({}, this.get(key), value): value;
+                        this.set(key, merged);
+                    } else if (useAll) {
                         this.set(key, value);
                     }
                 });

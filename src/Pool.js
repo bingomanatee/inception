@@ -77,7 +77,8 @@ export default (bottle) => {
 
     bottle.factory('Pool', function ({Impulse, Channel, poolRunner, error, noop}) {
         return class Pool {
-            constructor(name, channels = {}, params = {}) {
+            constructor(name, params = {}) {
+                const channels = lGet(params, 'channels', []);
                 this.name = name;
                 this.channels = channels;
                 this.updates = new Subject();

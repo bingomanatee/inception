@@ -1,5 +1,5 @@
 {
-  "name": "@wonderlandlabs/inception",
+  "name": "@wonderlandlabs/ripple",
   "version": "1.0.0",
   "description": "A stream based system for model/server communication",
   "main": "lib/index.js",

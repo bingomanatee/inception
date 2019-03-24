@@ -27,45 +27,50 @@ export default (bottle) => {
         }
     });
 
-    bottle.factory('restChannels', ({UNSET, error, restDataFromImpulse, DataMap, isUnset}) => {
-            const channels = new Map();
+    bottle.factory('observeSingle', ({restDataFromImpulse, isUnset, UNSET, DataMap}) => {
 
-            const observeSingle = (impulse, identity = UNSET) => {
-                if (isUnset(identity)) {
-                    identity = restDataFromImpulse(impulse, true);
+        const observeSingle = (impulse, identity = UNSET) => {
+            if (isUnset(identity)) {
+                identity = restDataFromImpulse(impulse, true);
+            }
+            const sub = impulse.pool.updates.pipe(
+                filter(otherImpulse => {
+                    let show = false;
+                    if (otherImpulse.impulseId === impulse.impulseId) {
+                        show = false;
+                    } else if (otherImpulse.response instanceof DataMap && otherImpulse.response.has(identity)) {
+                        show = true;
+                    } else if (otherImpulse.channel.name === 'delete') {
+                        let otherId = restDataFromImpulse(otherImpulse, true);
+                        show = otherId === identity;
+                    }
+                    return show;
+                }),
+                map((otherImpulse) => {
+                    let result = false;
+                    if (otherImpulse.channel.name === 'delete') {
+                        result = new DataMap([], impulse.pool);
+                    } else if (otherImpulse.response instanceof DataMap) {
+                        result = impulse.response.clone().updateFrom(otherImpulse.response);
+                    }
+                    return result;
+                })
+            ).subscribe(dm => {
+                if (dm !== false) {
+                    impulse.update({result: dm});
                 }
-                const sub = impulse.pool.updates.pipe(
-                    filter(otherImpulse => {
-                        let show = false;
-                        if (otherImpulse.impulseId === impulse.impulseId) {
-                            show = false;
-                        } else if (otherImpulse.response instanceof DataMap && otherImpulse.response.has(identity)) {
-                            show = true;
-                        } else if (otherImpulse.channel.name === 'delete') {
-                            let otherId = restDataFromImpulse(otherImpulse, true);
-                            show = otherId === identity;
-                        }
-                        return show;
-                    }),
-                    map((otherImpulse) => {
-                        let result = false;
-                        if (otherImpulse.channel.name === 'delete') {
-                            result = new DataMap([], impulse.pool);
-                        } else if (otherImpulse.response instanceof DataMap) {
-                            result = impulse.response.clone().updateFrom(otherImpulse.response);
-                        }
-                        return result;
-                    })
-                ).subscribe(dm => {
-                    if (dm !== false) {
-                        impulse.update({result: dm});
-                    }
-                    if (dm === null) {
-                        sub.unsubscribe();
-                    }
-                }, (err) => console.log('--------  error observing', impulse.toJSON(), err));
-                impulse.addSubscriber(sub);
-            };
+                if (dm === null) {
+                    sub.unsubscribe();
+                }
+            }, (err) => console.log('--------  error observing', impulse.toJSON(), err));
+            impulse.addSubscriber(sub);
+        };
+
+        return observeSingle;
+    });
+
+    bottle.factory('restChannels', ({UNSET, observeSingle, error, restDataFromImpulse, DataMap, isUnset}) => {
+            const channels = new Map();
 
             channels.set('get', {
                 action: async (impulse) => {

@@ -2,21 +2,30 @@ import bottle from './bottle';
 
 const myBottle = bottle();
 const {
-  Collection,
-  Data,
-  Fetcher
+  Pool,
+  RestPool,
+    Channel,
+    Impulse,
+    DataMap,
+    axios
 } = myBottle.container;
 
 export {
-  Collection,
-  Data,
-  Fetcher,
-  bottle
+  Pool,
+  RestPool,
+  Channel,
+  Impulse,
+  bottle,
+  DataMap,
+    axios
 }
 
 export default {
-  Collection,
-  Data,
-  Fetcher,
-  bottle
+  Pool,
+  RestPool,
+  Channel,
+  Impulse,
+  DataMap,
+  bottle,
+  axios
 }

@@ -184,13 +184,20 @@ export default (bottle) => {
                 return null;
             }
 
+            get observable(){
+                if (!this._observable){
+                    this._observable = this.pool
+                        .updates
+                        .pipe(
+                            filter(impulse => lGet(impulse, 'impulseId') === this.impulseId),
+                            startWith(this)
+                        );
+                }
+                return this._observable;
+            }
+
             subscribe(observer) {
-                let sub = this.pool
-                    .updates
-                    .pipe(
-                        filter(impulse => lGet(impulse, 'impulseId') === this.impulseId),
-                        startWith(this)
-                    ).subscribe(observer);
+                let sub = this.observable.subscribe(observer);
 
                 this.addSubscriber(sub);
                 return sub;

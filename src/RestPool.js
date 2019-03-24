@@ -24,38 +24,34 @@ export default (bottle) => {
                     rootURL,
                     idField = 'id',
                     fetcher = restFetcher,
-                    actions = REST_ACTIONS,
+                    methods = REST_ACTIONS,
                     toDataMap = UNSET,
                     channels = [],
-                    track = true,
-                    ...config
                 } = params;
 
-                super(name, config);
+                super(name, params);
                 this.fetcher = fetcher;
                 this.rootURL = rootURL;
                 this.idField = idField;
-                this.track = track;
-                this.data = track ? new DataMap([], this) : false;
+                this.data =  new DataMap([], this);
 
                 if (!isUnset(toDataMap)) {
                     this.toDataMap = toDataMap;
                 }
 
-                actions.forEach((action) => {
+                methods.forEach((action) => {
                     if (!restChannels.has(action)) {
                         throw error(action + ' is not in restChannels', params);
                     }
                     if (!this.can(action)) {
-                        this.addChannel(action, restChannels.get(action));
+                        this.addChannel(action, restChannels.get(action), true);
                     }
                 });
                 channels.forEach(c => {
                     if (c instanceof Channel) {
-                        this.addChannel(c);
+                        this.addChannel(c.name, c, true);
                     }
                 });
-                this._params = params;
             }
 
             get rootURL() {
@@ -87,13 +83,13 @@ export default (bottle) => {
                 return map;
             }
 
-            url(id) {
-                if (!id) {
+            url(...args) {
+                if (!args.length) {
                     return this.rootURL;
                 }
 
                 try {
-                    return urlJoin(this.rootURL, `${id}`);
+                    return urlJoin(this.rootURL, ...args.map(a => `${a}`));
                 } catch (err) {
                     throw error(err.message, {id, root: this.rootURL})
                 }
