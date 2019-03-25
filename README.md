@@ -146,6 +146,12 @@ assert.equals(values[0].name, 'Ronald', 'name gets updated to Ronald');
 this will **NOT** guarantee your collections are up to date with the remote 
 collection, but **WILL* share results based on data retrieved by other impulses.
 
+### Freezing Impulse Results
+
+There may be scenarios in which the updating of results through observation may NOT be a desired result.
+When, for instance, they are the basis for a table with many sub-calculations for ordering, etc., you may
+not want the table to constantly automatically refresh and recalculate based o
+
 ### Subscription
 
 Once an Impulse has been `.observe()`, you can `.subscribe(next, err, complete)` 
