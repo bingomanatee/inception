@@ -2,7 +2,15 @@
 
 Ripple is a stream-based REST api. It allows for rest actions to endpoints that 
 can be sent and received from pools of information (endpoints). It uses RxJS under the hood
-to track activity and strem and observe activity
+to track activity and stream and observe activity. 
+
+Although it is superficially a stream-driven extension of Axios, it has one feature that distinguish it from
+most REST APIS. Even after your response comes back, you can observe changes to the records returned
+that other calls elicit, even before your initial return response. So for instance, if you try to get
+one individual record by ID, and another response returns with that record in its response, the second response 
+will satisfy the first request. 
+
+
 
 ## Pools and RestPools
 

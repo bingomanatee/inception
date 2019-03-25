@@ -76,7 +76,10 @@ export default (bottle) => {
                     return dataMap;
                 },
                 observer(impulse) {
-                    observeSingle(impulse);
+                    impulse.then((result) =>{
+                        observeSingle(impulse);
+                        return result;
+                    });
                 }
             });
 
@@ -109,7 +112,10 @@ export default (bottle) => {
                     return dataMap;
                 },
                 observer(impulse) {
-                    return observeSingle(impulse);
+                    return impulse.then((result) => {
+                        observeSingle(impulse);
+                        return result;
+                    });
                 }
             });
 
@@ -125,12 +131,12 @@ export default (bottle) => {
                     return dataMap;
                 },
                 observer(impulse) {
-                    let identity;
                     return impulse.then((result) => {
                         if (result instanceof DataMap) {
-                            identity = Array.from(result.keys()).pop();
-                            return observeSingle(impulse, identity);
+                            let identity = Array.from(result.keys()).pop();
+                            observeSingle(impulse, identity);
                         }
+                        return result;
                     });
                 }
             });
