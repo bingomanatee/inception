@@ -98,25 +98,24 @@ export default (bottle) => {
                 });
             }
 
-            update(updateMessage) {
+            update(update) {
                 let error;
                 let result;
 
-                if ((('error' in updateMessage) || ('result' in updateMessage))) {
-                    ({error = null, result} = updateMessage);
+                if ((('error' in update) || ('result' in update))) {
+                    ({error = null, result} = update);
                 } else {
-                    result = updateMessage;
+                    result = update;
                 }
 
                 if (error) {
                     this.error = error;
                     this.state = IMPULSE_STATE_ERROR;
                     this.reject(error);
-                    this.pool.updates.error(updateMessage);
+                    this.pool.updates.error({
+                        impulse: this, update
+                    });
                 } else {
-                    if (!result) {
-                        console.log('========== undefined result into', this.toJSON());
-                    }
                     if (!this.resolved) {
                         this.resolve(result);
                         this.state = IMPULSE_STATE_RESOLVED;

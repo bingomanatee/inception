@@ -9,7 +9,6 @@ import unsetFactory from './utils';
 import restPoolFactory from './RestPool';
 import restPoolUtilFactory from './RestPoolUtils';
 import dataMapFactory from './DataMap';
-import updateFactory from './Update';
 
 export default () => {
     let bottle = new Bottle();
@@ -21,7 +20,6 @@ export default () => {
     promiserFactory(bottle);
     restPoolFactory(bottle);
     dataMapFactory(bottle);
-    updateFactory(bottle);
     restPoolUtilFactory(bottle);
     return bottle;
 }

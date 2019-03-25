@@ -46,11 +46,9 @@ export default (bottle) => {
                     performError = err;
                 }
 
-                const update = new Update({
-                    error: performError, result, impulse, channel: this
+                impulse.update({
+                    error: performError, result
                 });
-
-                impulse.update(update);
                 return impulse;
             }
 

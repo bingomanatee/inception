@@ -1,35 +1,15 @@
 import lGet from 'lodash.get';
 import axios from 'axios';
-import {filter, map, startWith} from 'rxjs/operators';
+import {filter, map} from 'rxjs/operators';
 
 export default (bottle) => {
     bottle.constant('REST_ACTIONS', 'get,put,post,delete,getAll'.split(','));
 
     bottle.factory('axios', () => axios);
 
-    bottle.factory('restFetcher', ({axios}) => {
-        return {
-            get: async (url, options) => {
-                return await axios.get(url, options);
-            },
-            put: async (url, fields, options) => {
-                return await axios.put(url, fields, options);
-            },
-            post: async (url, fields, options) => {
-                return await axios.post(url, fields, options);
-            },
-            delete: async (url, options) => {
-                return await axios.delete(url, options);
-            },
-            getAll: async (url, options) => {
-                return await axios.get(url, options);
-            },
-        }
-    });
-
     bottle.factory('observeSingle', ({restDataFromImpulse, isUnset, UNSET, DataMap}) => {
 
-        const observeSingle = (impulse, identity = UNSET) => {
+        return (impulse, identity = UNSET) => {
             if (isUnset(identity)) {
                 identity = restDataFromImpulse(impulse, true);
             }
@@ -59,14 +39,9 @@ export default (bottle) => {
                 if (dm !== false) {
                     impulse.update({result: dm});
                 }
-                if (dm === null) {
-                    sub.unsubscribe();
-                }
             }, (err) => console.log('--------  error observing', impulse.toJSON(), err));
             impulse.addSubscriber(sub);
         };
-
-        return observeSingle;
     });
 
     bottle.factory('restChannels', ({UNSET, observeSingle, error, restDataFromImpulse, DataMap, isUnset}) => {

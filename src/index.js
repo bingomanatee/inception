@@ -2,8 +2,8 @@ import bottle from './bottle';
 
 const myBottle = bottle();
 const {
-  Pool,
-  RestPool,
+    Pool,
+    RestPool,
     Channel,
     Impulse,
     DataMap,
@@ -11,21 +11,21 @@ const {
 } = myBottle.container;
 
 export {
-  Pool,
-  RestPool,
-  Channel,
-  Impulse,
-  bottle,
-  DataMap,
+    Pool,
+    RestPool,
+    Channel,
+    Impulse,
+    bottle,
+    DataMap,
     axios
 }
 
 export default {
-  Pool,
-  RestPool,
-  Channel,
-  Impulse,
-  DataMap,
-  bottle,
-  axios
+    Pool,
+    RestPool,
+    Channel,
+    Impulse,
+    DataMap,
+    bottle,
+    axios
 }

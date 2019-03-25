@@ -6,7 +6,7 @@ import urlJoin from 'url-join';
 export default (bottle) => {
 
     bottle.factory('RestPool', ({
-                                    Pool, noop, error, restFetcher, Channel, isUnset,
+                                    Pool, noop, error, axios, Channel, isUnset,
                                     REST_ACTIONS, UNSET, restChannels, DataMap
                                 }) => {
 
@@ -23,7 +23,7 @@ export default (bottle) => {
                 const {
                     rootURL,
                     idField = 'id',
-                    fetcher = restFetcher,
+                    fetcher = axios,
                     methods = REST_ACTIONS,
                     toDataMap = UNSET,
                     channels = [],
